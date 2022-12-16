@@ -22,4 +22,10 @@ EXAMPLES
 REQUIREMENTS
 Requires PowerCLI.
 Change variable for vCenter.
-List of VMs in comma separated file.
+Settings.ini = Contains the variables for vCenter and the MDT SQL database. Change as required.
+List of VMs in comma separated file. (defaults to vmlist.csv)
+
+SETUP
+Edit the settings.ini file - Change the vSphere value for the vCenter Server, and tune the default behaviour of the script.
+
+Edit the vmlist.csv file to define your list of VMs

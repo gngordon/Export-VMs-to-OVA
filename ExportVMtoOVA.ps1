@@ -2,14 +2,14 @@
 .SYNOPSIS
 Script to Export selected VMs to OVA files.
 Requires PowerCLI.
-Change variables for vCenter below.
-List of VMs in comma separated file.
+Settings.ini = Contains the variables for vCenter. Change as required.
+List of VMs in comma separated file. (defaults to vmlist.csv)
 
 .USAGE
      .\exportvmtoova.ps1 [vmlist.csv] [vCenterUser] [vCenterPassword]
      
      WHERE
-         vmlist.csv       = Comma delimited file with a VM per row. Fields required are: Name.
+         vmlist.csv       = Comma delimited file with a VM per row. Fields required are: Name
          vCenterUser      = Username for vCenter Server.
          vCenterPassword  = Password for vCenter Server user.
 
@@ -24,9 +24,9 @@ List of VMs in comma separated file.
     *Export VMs to OVA
     	
 .NOTES
-    Version:        1.1
+    Version:        2.0
     Author:         Graeme Gordon - ggordon@vmware.com
-    Creation Date:  2021/05/19
+    Creation Date:  2022/12/16
     Purpose/Change: Export VMs to OVA
   
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -43,42 +43,70 @@ param([string]$vmListFile = "vmlist.csv", [string] $vCenterUser, [string] $vCent
 ################################################################################
 #                                    Variables                                 #
 ################################################################################
-#vSphere settings and credentials
-$vCenterServer                    = "vcenter.domain.com"
-$global:Export_Directory          = "F:\Images"
+$SettingsFile			= "settings.ini"
 
-$global:Demo                      = $False
+$global:vcConnected		= $false
 #endregion variables
 
-function Initialize_Env
+function ImportIni
+{
+################################################################################
+# Function to parse token values from a .ini configuration file                #
+################################################################################
+	param ($file)
+
+	$ini = @{}
+	switch -regex -file $file
+	{
+            "^\s*#" {
+                continue
+            }
+    		"^\[(.+)\]$" {
+        		$section = $matches[1]
+        		$ini[$section] = @{}
+    		}
+    		"([A-Za-z0-9#_]+)=(.+)" {
+        		$name,$value = $matches[1..2]
+        		$ini[$section][$name] = $value.Trim()
+    		}
+	}
+	$ini
+}
+
+function Initialize_Env  ($vCenterServer)
 {
 ################################################################################
 #               Function Initialize_Env                                        #
 ################################################################################
     # --- Initialize PowerCLI Modules ---
+    #Get-Module -ListAvailable VMware* | Import-Module
     Import-Module VMware.VimAutomation.Core
-    Set-PowerCLIConfiguration -Scope User -ParticipateInCeip $false -Confirm:$false
-    Set-PowerCLIConfiguration -InvalidCertificateAction ignore -Confirm:$false
-    Set-PowerCLIConfiguration -DefaultVIServerMode Multiple -Confirm:$false
+	Set-PowerCLIConfiguration -Scope User -ParticipateInCeip $false -InvalidCertificateAction ignore -DefaultVIServerMode Multiple -Confirm:$false
 
     # --- Connect to the vCenter server ---
+	$attempt = 0
     Do {
         Write-Output "", "Connecting To vCenter Server:"
-        #$vc = Connect-VIServer -Server $vCenterServer -User $vCenterUser -Password $vCenterPassword -Force -WarningAction SilentlyContinue
+		Write-Host ("Connecting To vCenter Server: " + $vCenterServer) -ForegroundColor Yellow
         If (!$vCenterUser)
         {
-            $vc = Connect-VIServer -Server $vCenterServer
+            $vc = Connect-VIServer -Server $vCenterServer -ErrorAction SilentlyContinue
         }
         elseif (!$vCenterPassword)
         {
-            $vc = Connect-VIServer -Server $vCenterServer -User $vCenterUser
+            $vc = Connect-VIServer -Server $vCenterServer -User $vCenterUser -ErrorAction SilentlyContinue
         }
         else
         {
-            $vc = Connect-VIServer -Server $vCenterServer -User $vCenterUser -Password $vCenterPassword -Force -WarningAction SilentlyContinue
+             $vc = Connect-VIServer -Server $vCenterServer -User $vCenterUser -Password $vCenterPassword -Force -ErrorAction SilentlyContinue
         }
-        If (!$vc.IsConnected) { Write-Host ("Failed to connect to vCenter Server. Let's try that again.")  -ForegroundColor Red }
-    } Until ($vc.IsConnected)
+        If (!$vc.IsConnected)
+		{
+			$attempt += 1
+			Write-Host ("Failed to connect to vCenter Server. Attempt " + $attempt + " of 3")  -ForegroundColor Red
+		}
+    } Until ($vc.IsConnected -or $attempt -ge 3)
+	If ($vc.IsConnected) { $global:vcConnected = $true }
 }
 
 function Get_Folder ($Initial_Directory)
@@ -170,11 +198,28 @@ function Define_GUI
     $form.Controls.Add($listBox)
 }
 
-#region logic
+#region main
 ################################################################################
-#                                    Logic                                     #
+#              Main
 ################################################################################
-$global:vmlist = Import-Csv $vmListFile
+Clear-Host
+
+#Check the settings file exists
+if (!(Test-path $SettingsFile)) {
+	WriteErrorString "Error: Configuration file ($SettingsFile) not found."
+	Exit
+}
+#Import settings variables
+$global:vars = ImportIni $SettingsFile
+If ($vars.Controls.Demo = "No") { $global:Demo = $False } Else { $global:Demo = $True }
+$global:Export_Directory = $vars.Export.Export_Directory
+
+#Check the VM list file exists
+if (!(Test-path $vmListFile)) {
+	WriteErrorString "Error: VM list file ($vmListFile) not found."
+	Exit
+}
+$global:vmlist = Import-Csv $vmListFile #Import the list of VMs
 
 Define_GUI
 $result = $form.ShowDialog()
@@ -185,11 +230,12 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK)
 
     If ($selection)
     {
-        Write-Host ("Selected VMs:     " + $selection) -ForegroundColor Yellow
-        Write-Host ("Export Directory: " + $Export_Directory) -ForegroundColor Yellow
-        Write-Host ("Demo:             " + $Demo) -ForegroundColor Green
+        Write-Host ("Selected VMs     : " + $selection) -ForegroundColor Yellow
+        Write-Host ("Export Directory : " + $Export_Directory) -ForegroundColor Yellow
+        Write-Host ("Demo             : " + $Demo) -ForegroundColor Green
 
-        Initialize_Env
+        Initialize_Env $vars.vSphere.vCenterServer
+		If (!$vcConnected) { Exit }
         Add-Type -AssemblyName 'PresentationFramework'
             
         ForEach ($vm in $vmlist)
