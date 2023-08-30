@@ -3,8 +3,8 @@
 Assists with exporting virtual machines to OVA files
 
 GUI that provides:
-	* Selection of VMs from a list from a comma separated file that contains the VM names.
-	* Selection of destination directory.
+* Selection of VMs from a list from a comma separated file that contains the VM names.
+* Selection of destination directory.
 
 ## Usage
 .\exportvmtoova.ps1 [vmlist.csv] [vCenterUser] [vCenterPassword]
