@@ -16,7 +16,7 @@ List of VMs in comma separated file. (defaults to vmlist.csv)
 .EXAMPLES
      .\exportvmtoova.ps1
      .\exportvmtoova.ps1 mylist.csv
-     .\exportvmtoova.ps1 mylist.csv administrator@vsphere.local VMware1!
+     .\exportvmtoova.ps1 mylist.csv administrator@vsphere.local Omnissa1!
 
 .ACTIONS  
     *Select VMs
@@ -24,15 +24,15 @@ List of VMs in comma separated file. (defaults to vmlist.csv)
     *Export VMs to OVA
     	
 .NOTES
-    Version:        2.0
-    Author:         Graeme Gordon - ggordon@vmware.com
-    Creation Date:  2022/12/16
+    Version:        3.0
+    Author:         Graeme Gordon - ggordon@omnissa.com
+    Creation Date:  2025/06/19
     Purpose/Change: Export VMs to OVA
   
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL 
-    VMWARE,INC. BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+    OMNISSA LLC. BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
     IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  #>
